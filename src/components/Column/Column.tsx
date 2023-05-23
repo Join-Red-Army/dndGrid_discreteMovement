@@ -4,7 +4,7 @@ import './Column.css'
 
 const Column = () => {
   return (
-    <td className='column'>
+    <td className='Column'>
       <div className='column__ballast'></div>
     </td>
   );

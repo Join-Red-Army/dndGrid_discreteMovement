@@ -1,9 +1,9 @@
-.column {
-  border-left: 1px dashed #979797;
+.Column {
+  border-right: 1px dashed #979797;
   padding: 0;
   min-width: 50px;
 }
 
-.column:first-child {
-  border-left: 0;
+.column:last-child {
+  border-right: none;
 }
