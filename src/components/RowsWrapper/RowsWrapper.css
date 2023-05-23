@@ -1,0 +1,9 @@
+.rowsWrapper {
+  border-collapse: collapse;
+  min-height: fit-content;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}

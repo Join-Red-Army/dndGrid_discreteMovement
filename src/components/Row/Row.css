@@ -1,0 +1,16 @@
+.Row td {
+  padding: 0;
+}
+
+.Row {
+  border-bottom: 1px solid black;
+}
+
+.Row:last-child {
+  border-bottom: none;
+}
+
+.row__ballast {
+  min-height: 49px;
+  visibility: hidden;
+}

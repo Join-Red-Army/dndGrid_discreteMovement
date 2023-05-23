@@ -1,0 +1,12 @@
+.Brick {
+  width: 100px;
+  height: 49px;
+  background-color: orange;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+
+  cursor: pointer;
+}
