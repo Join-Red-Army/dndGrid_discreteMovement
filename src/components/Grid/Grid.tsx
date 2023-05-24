@@ -21,15 +21,14 @@ const Grid = () => {
   const dndClone = useRef<HTMLDivElement | null>(null);
   const columnElements = useRef<HTMLElement[] | null>(null);
 
-  const previousGridCoordX = useRef(0);
-  const previousGridCoordY = useRef(0);
+  const prevClientX = useRef(0);
+  const prevClientY = useRef(0);
 
-  const previousColumnCoordinate = useRef(0);
-  const previousRowCoordinate = useRef(0);
-
-  const cloneStatus = useRef({
-    inGrid: false 
-  });
+  const prevColumnCoord = useRef(0);
+  const prevRowCoordinate = useRef(0);
+  
+  const shiftX = useRef(0);
+  const shiftY = useRef(0);
 
   const isInGrid = useRef(false);
 
@@ -105,9 +104,22 @@ const Grid = () => {
     // Сделать копию, которая будет следовать за курсором
     dndClone.current = dragTarget.cloneNode(true) as HTMLDivElement;
     dndClone.current.style.pointerEvents = 'none';
+    dndClone.current.draggable = false;
+
+    // сделать поправку на точку клика по элементу .Brick
+    const dragTargetRect = dragTarget.getBoundingClientRect();
+    shiftX.current = e.clientX - dragTargetRect.left;
+    shiftY.current = e.clientY - dragTargetRect.top;
+
+    // скрыть дефолтную копию dnd
+    const fakeImg = document.createElement('img');
+    fakeImg.src = '';
+    fakeImg.alt = '';
+    fakeImg.style.opacity = '0'; 
+    e.dataTransfer.setDragImage(fakeImg, 0, 0);
 
     // Скрыть оригинальный Brick
-    setTimeout(() => dragTarget.style.visibility = 'hidden', 0);
+    setTimeout(() => dragTarget.style.visibility = 'hidden', 20);
   }
 
 
@@ -146,29 +158,29 @@ const Grid = () => {
     const gridOffsetLeft = gridRect.left;
     const gridOffsetTop = gridRect.top;
 
-    // получить коордитнату курсора относительно таблицы
-    const gridCoordX = e.clientX - gridOffsetLeft;
-    const gridCoordY = e.clientY - gridOffsetTop;
+    
+    // const gridCoordY = e.clientY - gridOffsetTop;
     
     // найти координаты колонки и ряда, в котором сейчас курсор
     // если курсор никуда не двигается - не высчитывать новые координаты
     let columnCoord;
-    if (previousGridCoordX.current === gridCoordX) {
-      columnCoord = previousColumnCoordinate.current;
+    if (prevClientX.current === e.clientX) {
+      columnCoord = prevColumnCoord.current;
     } else {
-      console.log('calculate X');
+      const gridCoordX = e.clientX - gridOffsetLeft - shiftX.current + Math.floor(shiftX.current % 50) // 50 - ширина колонки
       columnCoord = getCoordPoint(gridCoordX, columnCoords);
-      previousGridCoordX.current = gridCoordX;
-      previousColumnCoordinate.current = columnCoord;
+      prevClientX.current = e.clientX;
+      prevColumnCoord.current = columnCoord;
     }
+
     let rowCoord;
-    if (previousGridCoordY.current === gridCoordY) {
-      rowCoord = previousRowCoordinate.current;
+    if (prevClientY.current === e.clientY) {
+      rowCoord = prevRowCoordinate.current;
     } else {
-      console.log('calculate Y');
+      const gridCoordY = e.clientY - gridOffsetTop - shiftY.current + Math.floor(shiftY.current % 50);
       rowCoord = getCoordPoint(gridCoordY, rowCoords);
-      previousGridCoordY.current = gridCoordY;
-      previousRowCoordinate.current = rowCoord;
+      prevClientY.current = e.clientY;
+      prevRowCoordinate.current = rowCoord;
     }
     
     dndClone.current.style.transform = `translate3d(${columnCoord}px, ${rowCoord}px, 0px)`;
