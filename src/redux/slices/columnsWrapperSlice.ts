@@ -6,7 +6,7 @@ export interface IColumnsWrapperState {
 };
 
 const initialState: IColumnsWrapperState = {
-  columnCount: 25
+  columnCount: 15
 };
 
 export const counterSlice = createSlice({

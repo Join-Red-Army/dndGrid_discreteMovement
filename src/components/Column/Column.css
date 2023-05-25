@@ -4,6 +4,6 @@
   min-width: 50px;
 }
 
-.column:last-child {
+.Column:last-child {
   border-right: none;
 }

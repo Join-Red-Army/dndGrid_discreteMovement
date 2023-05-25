@@ -35,8 +35,8 @@ const Grid = () => {
 
   const style = useMemo(
     () => ({
-      width: columnCount * 50,
-      height: rowCount * 50, 
+      width: columnCount * 50 + 1,  // +1 - это поправка на border
+      height: rowCount * 50 + 1, 
     }), [ columnCount, rowCount ]
   );
 
@@ -117,6 +117,7 @@ const Grid = () => {
     fakeImg.alt = '';
     fakeImg.style.opacity = '0'; 
     e.dataTransfer.setDragImage(fakeImg, 0, 0);
+    // e.dataTransfer.dropEffect = 'none'
 
     // Скрыть оригинальный Brick
     setTimeout(() => dragTarget.style.visibility = 'hidden', 20);
@@ -169,6 +170,7 @@ const Grid = () => {
     } else {
       const gridCoordX = e.clientX - gridOffsetLeft - shiftX.current + Math.floor(shiftX.current % 50) // 50 - ширина колонки
       columnCoord = getCoordPoint(gridCoordX, columnCoords);
+      columnCoord = columnCoord - columnCoord % 50;  // исключить погрешности +/- 1px
       prevClientX.current = e.clientX;
       prevColumnCoord.current = columnCoord;
     }
@@ -179,12 +181,21 @@ const Grid = () => {
     } else {
       const gridCoordY = e.clientY - gridOffsetTop - shiftY.current + Math.floor(shiftY.current % 50);
       rowCoord = getCoordPoint(gridCoordY, rowCoords);
+      rowCoord = rowCoord - rowCoord % 50;
       prevClientY.current = e.clientY;
       prevRowCoordinate.current = rowCoord;
     }
     
     dndClone.current.style.transform = `translate3d(${columnCoord}px, ${rowCoord}px, 0px)`;
-  }
+
+    e.preventDefault()
+  };
+
+
+  const onDrop = (e: any) => {
+    if (!brickRef.current) return;
+    brickRef.current.style.transform = `translate3d(${prevColumnCoord.current}px, ${prevRowCoordinate.current}px, 0px)`;
+  } 
 
   return (
     <div 
@@ -193,6 +204,7 @@ const Grid = () => {
       style={ style }
       onDragOver={ onDragOver }
       onDragStart={ onDragStart }
+      onDrop={ onDrop }
     >
       <Brick ref={ brickRef } />
       <ColumnsWrapper ref={ columnsWrapperRef } />
