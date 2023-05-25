@@ -3,10 +3,12 @@ import { createSlice, /* PayloadAction */ } from "@reduxjs/toolkit";
 
 export interface IRowsWrapperState {
   rowCount: number
+  rowHeight: number
 };
 
 const initialState: IRowsWrapperState = {
-  rowCount: 10
+  rowCount: 10,
+  rowHeight: 50
 };
 
 export const counterSlice = createSlice({

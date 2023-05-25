@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState, useEffect, useLayoutEffect } from 'react'
+import React, { useRef, useMemo, useEffect } from 'react'
 import { useAppDispatch } from '../../redux/hooks';
 import { writeCoords } from '../../redux/slices/coordsSlice';
 import ColumnsWrapper from '../ColumnsWrapper';
@@ -9,35 +9,41 @@ import { useAppSelector } from '../../redux/hooks';
 
 
 const Grid = () => {
-  const { columnCount } = useAppSelector(state => state.columns);
-  const { rowCount } = useAppSelector(state => state.rows);
+  const { columnCount, columnWidth } = useAppSelector(state => state.columns);
+  const { rowCount, rowHeight } = useAppSelector(state => state.rows);
   const { columnCoords, rowCoords } = useAppSelector(state => state.coords);
   const dispatch = useAppDispatch();
 
   const columnsWrapperRef = useRef<HTMLElement>(null);
   const rowsWrapperRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
-  const brickRef = useRef<HTMLDivElement>(null);
-  const dndClone = useRef<HTMLDivElement | null>(null);
   const columnElements = useRef<HTMLElement[] | null>(null);
 
-  const prevClientX = useRef(0);
-  const prevClientY = useRef(0);
+  // ссылка на перетягиваемый элемент и его копию
+  const brickRef = useRef<HTMLDivElement | null>(null);
+  const dndClone = useRef<HTMLDivElement | null>(null);
 
+  // предыдущие координаты курсора
+  const prevClientX = useRef<number | null>(null);
+  const prevClientY = useRef<number | null>(null);
+
+  // предыдущие координаты для позиционирования копии
   const prevColumnCoord = useRef(0);
   const prevRowCoordinate = useRef(0);
   
+  // поправка на размеры перетягиваемого элемента
   const shiftX = useRef(0);
   const shiftY = useRef(0);
 
+  // находится ли в таблице перетягиваемый элемент
   const isInGrid = useRef(false);
 
 
   const style = useMemo(
     () => ({
-      width: columnCount * 50 + 1,  // +1 - это поправка на border
-      height: rowCount * 50 + 1, 
-    }), [ columnCount, rowCount ]
+      width: columnCount * columnWidth + 1,  // +1 - это поправка на border
+      height: rowCount * rowHeight + 1, 
+    }), [ columnCount, rowCount, columnWidth, rowHeight ]
   );
 
 
@@ -62,17 +68,17 @@ const Grid = () => {
   );
 
 
-  const showOriginalBrick = (e: any) => {
-    e.target.style.visibility = 'visible';
+  const showOriginalBrick = (e: DragEvent) => {
+    const target = e.target as HTMLElement;
+    target.style.visibility = 'visible';
     dndClone.current!.remove();
     dndClone.current = null;
     isInGrid.current = false;
   };
 
-  const onDocumentDragOver = (e: any) => {
+  const onDocumentDragOver = (e: DragEvent) => {
     // реагировать только на копию элемента .Brick
     if (!dndClone.current) return;
-
     // если клон только что перешёл из сетки .Grid
     if (isInGrid.current) {
       dndClone.current.style.position = 'fixed';
@@ -94,12 +100,14 @@ const Grid = () => {
     }, []
   );
 
-  const onDragStart = (e: any) => {
-    if (!gridRef.current) return;
-
+  
+  const onDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     // реагировать только на перетягивание элементов .Brick 
-    const dragTarget = e.target;
+    const dragTarget = e.target as HTMLDivElement;
     if (!dragTarget.classList.contains('Brick')) return; 
+
+    // сохранить ссылку на перетягиваемый .Brick
+    brickRef.current = dragTarget;
 
     // Сделать копию, которая будет следовать за курсором
     dndClone.current = dragTarget.cloneNode(true) as HTMLDivElement;
@@ -128,11 +136,9 @@ const Grid = () => {
     const result = coords.find((num, i) => {
       // это первый колонка/ряд
       if (i === 0 && point < num ) return true;
-
       // это последняя колонка/ряд
       const nextNum = coords[i + 1] ?? null;
       if (nextNum === null) return true;
-
       // курсор находится в какой-то колонке
       return (num <= point && point < nextNum);
     });
@@ -141,17 +147,20 @@ const Grid = () => {
   };
 
 
-  const onDragOver = (e: React.DragEvent) => {
+  const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     if (!dndClone.current || !gridRef.current) return;
     
     // не давать Document перехватить событие
     e.stopPropagation();
+    e.preventDefault();
 
     // в сетке?
     if (!isInGrid.current) {
       gridRef.current.append(dndClone.current);
       isInGrid.current = true;
       dndClone.current.style.position = 'absolute';
+      prevClientX.current = null;
+      prevClientY.current = null;
     }
 
     // поправка на отступ таблицы
@@ -159,41 +168,52 @@ const Grid = () => {
     const gridOffsetLeft = gridRect.left;
     const gridOffsetTop = gridRect.top;
 
-    
-    // const gridCoordY = e.clientY - gridOffsetTop;
-    
-    // найти координаты колонки и ряда, в котором сейчас курсор
-    // если курсор никуда не двигается - не высчитывать новые координаты
+    // получить координаты курсора относительно .Grid
+    const gridX = e.clientX - gridOffsetLeft;
+    const gridY = e.clientY - gridOffsetTop;
+
+    // переменные для оптимизации, чтобы часто не бегать по массивам
+    const discreteX = gridX - (gridX % columnWidth);
+    const discreteY = gridY - (gridY % rowHeight);
+
+    const isCursorInSameColumn = prevClientX.current === discreteX;
+    const isCursorInSameRow = prevClientY.current === discreteY;
+
+    // курсор стоит на месте
+    if (isCursorInSameColumn && isCursorInSameRow) {
+      return;
+    }
+
     let columnCoord;
-    if (prevClientX.current === e.clientX) {
+    if (isCursorInSameColumn) {
       columnCoord = prevColumnCoord.current;
     } else {
-      const gridCoordX = e.clientX - gridOffsetLeft - shiftX.current + Math.floor(shiftX.current % 50) // 50 - ширина колонки
+      // console.log('вычисление координаты колонки');
+      const gridCoordX = gridX - shiftX.current + (shiftX.current % columnWidth);
       columnCoord = getCoordPoint(gridCoordX, columnCoords);
-      columnCoord = columnCoord - columnCoord % 50;  // исключить погрешности +/- 1px
-      prevClientX.current = e.clientX;
+      prevClientX.current = discreteX;
       prevColumnCoord.current = columnCoord;
     }
 
     let rowCoord;
-    if (prevClientY.current === e.clientY) {
+    if (prevClientY.current === discreteY) {
       rowCoord = prevRowCoordinate.current;
     } else {
-      const gridCoordY = e.clientY - gridOffsetTop - shiftY.current + Math.floor(shiftY.current % 50);
+      // console.log('вычисление координаты ряда');
+      const gridCoordY = Math.round( gridY - shiftY.current + (shiftY.current % rowHeight) );
       rowCoord = getCoordPoint(gridCoordY, rowCoords);
-      rowCoord = rowCoord - rowCoord % 50;
-      prevClientY.current = e.clientY;
+      prevClientY.current = discreteY;
       prevRowCoordinate.current = rowCoord;
     }
     
+    // спозиционировать копию по полученным координатам 
     dndClone.current.style.transform = `translate3d(${columnCoord}px, ${rowCoord}px, 0px)`;
-
-    e.preventDefault()
   };
 
 
-  const onDrop = (e: any) => {
+  const onDrop = () => {
     if (!brickRef.current) return;
+    // воз здесь записать состояние
     brickRef.current.style.transform = `translate3d(${prevColumnCoord.current}px, ${prevRowCoordinate.current}px, 0px)`;
   } 
 
@@ -206,7 +226,8 @@ const Grid = () => {
       onDragStart={ onDragStart }
       onDrop={ onDrop }
     >
-      <Brick ref={ brickRef } />
+      {/* <Brick ref={ brickRef } /> */}
+      <Brick />
       <ColumnsWrapper ref={ columnsWrapperRef } />
       <RowsWrapper ref={ rowsWrapperRef }/>
     </div>
