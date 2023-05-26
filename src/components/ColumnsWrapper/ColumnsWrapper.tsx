@@ -8,7 +8,7 @@ const ColumnsWrapper: React.FC = (_, ref) => {
   const { columnCount } = useAppSelector((state) => state.columns);
 
   const columns: JSX.Element[] = useMemo (
-    () => Array(columnCount).fill(<Column/>),
+    () => Array(columnCount).fill(null).map((_, i) => <Column key={ i }/>),
     [ columnCount ]
   );
 

@@ -1,12 +1,19 @@
 import React, { useRef, useMemo, useEffect } from 'react'
 import { useAppDispatch } from '../../redux/hooks';
+import { useAppSelector } from '../../redux/hooks';
+import './Grid.css'
+
+// actions
 import { writeCoords } from '../../redux/slices/coordsSlice';
+import { setCoords } from '../../redux/slices/bricksSlice';
+
+// components
 import ColumnsWrapper from '../ColumnsWrapper';
 import RowsWrapper from '../RowsWrapper';
 import Brick from '../Brick';
-import { setCoords } from '../../redux/slices/bricksSlice';
-import './Grid.css'
-import { useAppSelector } from '../../redux/hooks';
+
+// libs
+import { getCorrespondingOffset } from '../../libs/getCorrespondingOffset';
 
 
 const Grid = () => {
@@ -32,7 +39,7 @@ const Grid = () => {
 
   // предыдущие координаты для позиционирования копии
   const prevColumnCoord = useRef(0);
-  const prevRowCoordinate = useRef(0);
+  const prevRowCoord = useRef(0);
   
   // поправка на размеры перетягиваемого элемента
   const shiftX = useRef(0);
@@ -128,26 +135,10 @@ const Grid = () => {
     fakeImg.alt = '';
     fakeImg.style.opacity = '0'; 
     e.dataTransfer.setDragImage(fakeImg, 0, 0);
-    // e.dataTransfer.dropEffect = 'none'
 
     // Скрыть оригинальный Brick
     setTimeout(() => dragTarget.style.visibility = 'hidden', 20);
   }
-
-
-  const getCoordPoint = (point: number, coords: number[]) => {
-    const result = coords.find((num, i) => {
-      // это первый колонка/ряд
-      if (i === 0 && point < num ) return true;
-      // это последняя колонка/ряд
-      const nextNum = coords[i + 1] ?? null;
-      if (nextNum === null) return true;
-      // курсор находится в какой-то колонке
-      return (num <= point && point < nextNum);
-    });
-
-    return result ?? 0;
-  };
 
 
   const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -157,7 +148,7 @@ const Grid = () => {
     e.stopPropagation();
     e.preventDefault();
 
-    // в сетке?
+    // если курсор зашёл в сетку
     if (!isInGrid.current) {
       gridRef.current.append(dndClone.current);
       isInGrid.current = true;
@@ -166,62 +157,51 @@ const Grid = () => {
       prevClientY.current = null;
     }
 
-    // поправка на отступ таблицы
+    // поправка на отступ .Grid относительно окна
     const gridRect = gridRef.current.getBoundingClientRect();
     const gridOffsetLeft = gridRect.left;
     const gridOffsetTop = gridRect.top;
 
-    // получить координаты курсора относительно .Grid
+    // получить координаты курсора внутри .Grid
     const gridX = e.clientX - gridOffsetLeft;
     const gridY = e.clientY - gridOffsetTop;
 
-    // переменные для оптимизации, чтобы часто не бегать по массивам
+    // копия перетягиваемого объекта перемещается внутри таблицы дискретно:
+    // шагами размером в ширину колонки или высоту ряда 
     const discreteX = gridX - (gridX % columnWidth);
     const discreteY = gridY - (gridY % rowHeight);
 
+    // проверить, ушёл ли курсор из прошлого ряда или колонки
     const isCursorInSameColumn = prevClientX.current === discreteX;
     const isCursorInSameRow = prevClientY.current === discreteY;
 
-    // курсор стоит на месте
-    if (isCursorInSameColumn && isCursorInSameRow) {
-      return;
-    }
+    // если курсор стоит на месте - ничего не делать
+    if (isCursorInSameColumn && isCursorInSameRow) return;
 
-    let columnCoord;
-    if (isCursorInSameColumn) {
-      columnCoord = prevColumnCoord.current;
-    } else {
-      // console.log('вычисление координаты колонки');
-      const gridCoordX = gridX - shiftX.current + (shiftX.current % columnWidth);
-      columnCoord = getCoordPoint(gridCoordX, columnCoords);
-      prevClientX.current = discreteX;
-      prevColumnCoord.current = columnCoord;
-    }
+    // простой способ получения координат для позиционирования dnd-копии
+    let columnCoord = discreteX - shiftX.current + (shiftX.current % columnWidth);
+    if (columnCoord < 0) columnCoord = 0;
+    let rowCoord = discreteY;
 
-    let rowCoord;
-    if (prevClientY.current === discreteY) {
-      rowCoord = prevRowCoordinate.current;
-    } else {
-      // console.log('вычисление координаты ряда');
-      const gridCoordY = Math.round( gridY - shiftY.current + (shiftY.current % rowHeight) );
-      rowCoord = getCoordPoint(gridCoordY, rowCoords);
-      prevClientY.current = discreteY;
-      prevRowCoordinate.current = rowCoord;
-    }
-    
+    if (!isCursorInSameColumn) prevColumnCoord.current = columnCoord;
+    if (!isCursorInSameRow) prevRowCoord.current = discreteY;
+
     // спозиционировать копию по полученным координатам 
     dndClone.current.style.transform = `translate3d(${columnCoord}px, ${rowCoord}px, 0px)`;
+
+    // Есть сложный способ: получить координаты с помощью функции getCorrespondingOffset.
+    // Функция обойдёт массивы columnCoords rowCoords и найдёт координаты колонки и ряда, над которыми находится корсор.
+    // См. предыдущий коммит.
   };
 
 
   const onDrop = () => {
     if (!brickRef.current) return;
-    // было:
-    // brickRef.current.style.transform = `translate3d(${prevColumnCoord.current}px, ${prevRowCoordinate.current}px, 0px)`;
+    // было: brickRef.current.style.transform = `translate3d(${prevColumnCoord.current}px, ${prevRowCoord.current}px, 0px)`;
     dispatch(setCoords({
       id: Number(brickRef.current.dataset.id),
       coordX: prevColumnCoord.current,
-      coordY: prevRowCoordinate.current
+      coordY: prevRowCoord.current
     }));
   }
 
@@ -236,8 +216,7 @@ const Grid = () => {
   //   () => brickIds.map((id) => <Brick id={ id } />), 
   //   []
   // );
-  
-  console.log('render');
+
 
   return (
     <div 

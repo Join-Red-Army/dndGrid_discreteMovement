@@ -7,7 +7,7 @@ const RowsWrapper: React.FC = (_, ref) => {
   const { rowCount } = useAppSelector(state => state.rows);
 
   const rows: JSX.Element[] = useMemo (
-    () => Array(rowCount).fill(<Row />),
+    () => Array(rowCount).fill(null).map((_, i) => <Row key={ i }/>),
     [ rowCount ]
   );
 
