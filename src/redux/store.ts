@@ -2,12 +2,14 @@ import { configureStore } from '@reduxjs/toolkit';
 import columnsWrapperReducer from './slices/columnsWrapperSlice';
 import rowsWrapperReducer from './slices/rowsWrapperSlice';
 import coordsReducer from './slices/coordsSlice';
+import bricksReducer from './slices/bricksSlice'
 
 export const store = configureStore({
   reducer: {
     rows: rowsWrapperReducer,
     columns: columnsWrapperReducer,
-    coords: coordsReducer
+    coords: coordsReducer,
+    bricks: bricksReducer
    }
 });
 

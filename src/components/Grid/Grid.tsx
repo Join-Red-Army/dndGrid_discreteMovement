@@ -4,6 +4,7 @@ import { writeCoords } from '../../redux/slices/coordsSlice';
 import ColumnsWrapper from '../ColumnsWrapper';
 import RowsWrapper from '../RowsWrapper';
 import Brick from '../Brick';
+import { setCoords } from '../../redux/slices/bricksSlice';
 import './Grid.css'
 import { useAppSelector } from '../../redux/hooks';
 
@@ -12,6 +13,8 @@ const Grid = () => {
   const { columnCount, columnWidth } = useAppSelector(state => state.columns);
   const { rowCount, rowHeight } = useAppSelector(state => state.rows);
   const { columnCoords, rowCoords } = useAppSelector(state => state.coords);
+  // const brickIds = useAppSelector((state) => state.bricks.map((el) => el.id as number));
+  const brickIds = useAppSelector((state) => state.bricks.map((el) => el.id as number).join('_'));
   const dispatch = useAppDispatch();
 
   const columnsWrapperRef = useRef<HTMLElement>(null);
@@ -213,9 +216,28 @@ const Grid = () => {
 
   const onDrop = () => {
     if (!brickRef.current) return;
-    // воз здесь записать состояние
-    brickRef.current.style.transform = `translate3d(${prevColumnCoord.current}px, ${prevRowCoordinate.current}px, 0px)`;
-  } 
+    // было:
+    // brickRef.current.style.transform = `translate3d(${prevColumnCoord.current}px, ${prevRowCoordinate.current}px, 0px)`;
+    dispatch(setCoords({
+      id: Number(brickRef.current.dataset.id),
+      coordX: prevColumnCoord.current,
+      coordY: prevRowCoordinate.current
+    }));
+  }
+
+
+  const brickElements = useMemo(
+    () => brickIds.split('_').map((id) => <Brick id={ Number(id) } />), 
+    [  ]
+  );
+
+
+  // const brickElements = useMemo(
+  //   () => brickIds.map((id) => <Brick id={ id } />), 
+  //   []
+  // );
+  
+  console.log('render');
 
   return (
     <div 
@@ -227,7 +249,8 @@ const Grid = () => {
       onDrop={ onDrop }
     >
       {/* <Brick ref={ brickRef } /> */}
-      <Brick />
+      {/* <Brick /> */}
+      { brickElements }
       <ColumnsWrapper ref={ columnsWrapperRef } />
       <RowsWrapper ref={ rowsWrapperRef }/>
     </div>
